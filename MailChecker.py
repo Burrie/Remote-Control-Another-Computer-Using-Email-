@@ -12,20 +12,27 @@ imap.login(account, password)
 
 imap.select("Inbox")
 
-str = ""
+#Select unseen message in Inbox to read
+cmd = 'start'
+while cmd != 'quit':
+    res, mailIds = imap.search(None, '(UNSEEN)')
 
-while True:
-    _, mailIDs = imap.search(None, 'UNSEEN')
-    
-    for id in mailIDs[0].decode().split():
-        responses, mailData = imap.fetch(id, '(BODY)')
-        message = email.message_from_bytes(mailData[0][1])
+    #Try to read email
+    try:
+        for id in mailIds[0].decode().split():
+            res, mailData = imap.fetch(id, '(RFC822)')
+            message = email.message_from_bytes(mailData[0][1])
+
+            #Get message
+            for part in message.walk():
+                if(part.get_content_type() == 'text/plain'):
+                    cmd = part.as_string().splitlines()[-1]
+                    print(cmd)
+
+    except Exception as e:
+        print("Error type: {}, Error: {}".format(type(e).__name__, e))
         
-        for part in message.walk():
-            if part.get_content_type() == "text/plain":
-                str = part.as_string()
-    
-    time.sleep(0.5)
+    time.sleep(0.75)
 
 imap.close()
 
