@@ -12,6 +12,19 @@ imap.login(account, password)
 
 imap.select("Inbox")
 
+#Check mail and implement
+def CheckAndDo(cmd):
+    if(cmd == 'list applications'):
+        print()
+    elif(cmd == 'list processes'):  
+        print()
+    elif(cmd == 'shut down'):  
+        print()
+    elif(cmd == 'catch button'):  
+        print()
+    elif(cmd == 'screenshot'):  
+        print()
+
 #Select unseen message in Inbox to read
 cmd = 'start'
 while cmd != 'quit':
@@ -27,12 +40,12 @@ while cmd != 'quit':
             for part in message.walk():
                 if(part.get_content_type() == 'text/plain'):
                     cmd = part.as_string().splitlines()[-1]
-                    print(cmd)
-
+                    CheckAndDo(cmd = cmd)
+                    
     except Exception as e:
         print("Error type: {}, Error: {}".format(type(e).__name__, e))
         
-    time.sleep(0.75)
+    time.sleep(0.5)
 
 imap.close()
 
