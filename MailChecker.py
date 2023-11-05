@@ -1,7 +1,6 @@
 import imaplib
 import time
 import email
-from server.service.app_process import execute_msg
 
 server = 'imap.gmail.com'
 account = 'mangmaytinhremotecontrol@gmail.com'
@@ -16,15 +15,17 @@ imap.select("Inbox")
 #Check mail and implement
 def CheckAndDo(cmd):
     if(cmd == 'list applications'):
-        print(execute_msg(cmd))
+        print('applications: app A, app B, app C')
     elif(cmd == 'list processes'):  
-        print(execute_msg(cmd))
+        print('processes: pA, pB, pC')
     elif(cmd == 'shut down'):  
-        print()
+        print('shutdown')
     elif(cmd == 'keylogger'):  
-        print()
+        print('keylogger: A, B, C, D')
     elif(cmd == 'screenshot'):  
-        print()
+        print('photo')
+    else:
+        print(cmd)
 
 #Select unseen message in Inbox to read
 cmd = 'start'
@@ -35,7 +36,7 @@ while cmd != 'quit':
     try:
         for id in mailIds[0].decode().split():
             res, mailData = imap.fetch(id, '(RFC822)')
-            message = email.message_from_bytes(mailData[0][1])
+            message = email.message_from_string(mailData[0][1].decode())
 
             #Get message
             for part in message.walk():
@@ -46,7 +47,7 @@ while cmd != 'quit':
     except Exception as e:
         print("Error type: {}, Error: {}".format(type(e).__name__, e))
         
-    time.sleep(0.5)
+    time.sleep(1)
 
 imap.close()
 
