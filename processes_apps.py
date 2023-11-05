@@ -81,9 +81,9 @@ def turn_on(name):
         command = "start " + name
         
     if os.system(command) != 0:
-        return (f"Error: Failed to start {name}.")
+        return "Error: Failed to start {}.".format(name)
     else:
-        return (f"{name} has started successfully.")
+        return "{} has started successfully.".format(name)
     
 def turn_off(pid):
     command = ""
@@ -96,15 +96,15 @@ def turn_off(pid):
     # turn off the process
 
     if os.system(command) != 0:
-        return (f"Error: Failed to kill process with PID {pid}.")
+        return "Error: Failed to kill process with PID {}.".format(pid)
     else:
-        return (f"Process with PID {pid} was killed.")
+        return "Process with PID {} was killed.".format(pid)
     
 def execute_msg(msg):
     result = ""
-    if "Application" in msg:
+    if "applications" in msg:
         result = "List of application\n" + "Id - Name\n" + apps()
-    elif "Process" in msg:
+    elif "processes" in msg:
         result = "List of process\n" + "Id - Name\n" + processes()
     elif "Start" in msg:
         try:
@@ -112,7 +112,7 @@ def execute_msg(msg):
         except:
             print("Wrong format.")
         result = turn_on(name)
-    elif "Kill" in msg:
+    elif "shut down" in msg:
         try:
             id = re.search(r'id:(\d+)', msg).group(1)
         except:

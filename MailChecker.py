@@ -1,6 +1,7 @@
 import imaplib
 import time
 import email
+from server.service.app_process import execute_msg
 
 server = 'imap.gmail.com'
 account = 'mangmaytinhremotecontrol@gmail.com'
@@ -15,12 +16,12 @@ imap.select("Inbox")
 #Check mail and implement
 def CheckAndDo(cmd):
     if(cmd == 'list applications'):
-        print()
+        print(execute_msg(cmd))
     elif(cmd == 'list processes'):  
-        print()
+        print(execute_msg(cmd))
     elif(cmd == 'shut down'):  
         print()
-    elif(cmd == 'catch button'):  
+    elif(cmd == 'keylogger'):  
         print()
     elif(cmd == 'screenshot'):  
         print()

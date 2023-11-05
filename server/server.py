@@ -2,9 +2,9 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
-sender_email = "test.sender.pp@gmail.com"
+sender_email = "mangmaytinhremotecontrol@gmail.com"
 receiver_email = "mangmaytinhremotecontrol@gmail.com"
-password = "mqre gihn qzct yulz"
+password = "lmlx vrwx cwym hvqz"
 
 subject = input("Enter your subject here: ")
 message = input("Enter your message here: ")
