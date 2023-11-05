@@ -41,7 +41,7 @@ while cmd != 'quit':
         for part in message.walk():
             if(part.get_content_type() == 'text/plain'):
                 cmd = part.as_string().splitlines()[-1]
-                CheckAndDo(cmd = cmd)
+                CheckAndDo(cmd)
                     
     
     imap.close()
