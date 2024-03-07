@@ -4,31 +4,85 @@
 
 using namespace std;
 
-class State
+struct State
 {
-    private:
-        string state, goalState;
-        int n;
-    public:
-        State();
-        State(string s) {state = s;}
+    vector<int> vec;
+    int blankPos;
 
-        void generateState();
-        bool isGoal() {return state == goalState;}
+    State() {}
+    State(const int& n);
+    State(vector<int> _v, int _blankPos);
+};
+State::State(const int& n)
+{
+    for(int i = 0; i < n; i++)
+        vec.push_back(0);
+    for(int i = 1; i < n; i++)
+    {
+        int tmp = rand() & n;
+        while (vec[tmp] != 0)
+        {
+            if(++tmp == n)
+                tmp = 0;
+        }
+        vec[tmp] = i;
+    }
+    for(int i = 0; i < n; i++)
+        if(vec[i] == 0)
+        {
+            blankPos = i;
+            break;
+        }
+}
+State::State(vector<int> _v, int _blankPos)
+{
+    vec = _v;
+    blankPos = _blankPos;
+}
+
+
+struct Node
+{
+    State state;
+    Node* parent;
+    int pathCost;
+
+    Node(const State& _state);
+    
+    vector<Node> expand();
 };
 
-class Node
+Node::Node(const State& _state)
 {
-    private:
-        State state;
-        Node* parent;
-        int pathCost;
-    public:
-        Node(const State& _state) {state = _state; parent = nullptr; pathCost = 0;}
-        vector<Node> expand();
-        int getPathCost() {return pathCost;};
-        State getState() {return state;};
-};
+    state = _state;
+    parent = nullptr;
+    pathCost = 0;
+}
+
+vector<Node> Node::expand()
+{
+    vector<Node> vecExpanded;
+
+    vector<int> vec = state.vec;
+    int actions[] {-1, 1, -3, 3};
+    for(int i = 0; i < 4; i++)
+    {
+        if(state.blankPos + actions[i] < vec.size())
+        {
+            vector<int> newVec = vec;
+            newVec[state.blankPos] = newVec[state.blankPos + actions[i]];
+            newVec[state.blankPos + actions[i]] = 0;
+
+            Node node = Node(State(newVec, state.blankPos + actions[i]));
+            node.parent = this;
+            node.pathCost = pathCost + 1;
+
+            vecExpanded.push_back(node);
+        }
+    } 
+    
+    return vecExpanded;
+}
 
 void Sort_Expanded_Nodes(vector<Node> &nodes, vector<State> reachedStates)
 {
@@ -42,7 +96,7 @@ void Sort_Expanded_Nodes(vector<Node> &nodes, vector<State> reachedStates)
         unSorted = false;
         for(int i = 0; i < size - 1; i++)
         {
-            if(nodes[i].getPathCost() > nodes[i+1].getPathCost())
+            if(nodes[i].pathCost > nodes[i+1].pathCost)
                 {
                     unSorted = true;
                     Node tmp = nodes[i];
@@ -53,7 +107,7 @@ void Sort_Expanded_Nodes(vector<Node> &nodes, vector<State> reachedStates)
     }
 }
 
-Node UCS(State initialState)
+Node UCS(State initialState, int n)
 {
     if(initialState.isGoal())
         return Node(initialState);
@@ -68,11 +122,11 @@ Node UCS(State initialState)
         Node node = frontier.front();
         frontier.pop();
 
-        reachedStates.push_back(node.getState());
+        reachedStates.push_back(node.state);
 
         vector<Node> expandedNodes = node.expand();
 
-        if(expandedNodes[0].getState().isGoal())
+        if(expandedNodes[0].state.isGoal())
             return expandedNodes[0];
 
         /*
@@ -87,5 +141,5 @@ Node UCS(State initialState)
             frontier.push(expandedNodes[i]);
     }
 
-    return Node(State(""));
+    return Node(State());
 }
