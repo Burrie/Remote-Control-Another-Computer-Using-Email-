@@ -1,3 +1,4 @@
+#include <iostream>
 #include<string>
 #include<vector>
 #include<queue>
@@ -9,24 +10,73 @@ struct State
     vector<int> vec;
     int blankPos;
 
+    bool operator== (const State& _s);
+
     State() {}
-    State(const int& n);
-    State(vector<int> _v, int _blankPos);
+    State(const int& n); //Randomly generate
 };
+
+struct Problem
+{
+    State goalState, initialState;
+    int actions[4] {-1, 1, -3, 3};
+
+    vector<State> trasitionModel(const State& _s);
+    bool isGoal(const State& _s);
+
+    vector<State> solution;
+
+    Problem(const int& _n);
+};
+
+struct Node
+{
+    State state;
+    Node* parent;
+    int pathCost;
+    
+    vector<Node> expand(Problem& problem, vector<State> reachedStates, const bool& isGraphSearch, bool& goalFound);
+
+    void constructSolution(Problem& problem);
+
+    Node();
+};
+
+
+Problem::Problem(const int& _n)
+{
+    initialState = State(_n);
+    for(int i = 0; i < _n; i++)
+        goalState.vec.push_back(i);
+}
+vector<State> Problem::trasitionModel(const State& _s)
+{
+    vector<State> models;
+
+    int size = _s.vec.size();
+    for(int i = 0; i < 4; i++)
+    {
+        if(_s.blankPos + actions[i] < size && _s.blankPos + actions[i] >= 0) //Swap blank pos
+        {
+            State s = _s;
+            s.vec[s.blankPos] = s.vec[s.blankPos + actions[i]];
+            s.vec[s.blankPos += actions[i]] = 0; //Update blank pos
+            models.push_back(s);
+        }
+    }
+
+    return models;
+}
+bool Problem::isGoal(const State& _s)
+{
+    return goalState == _s;
+}
+
+
 State::State(const int& n)
 {
     for(int i = 0; i < n; i++)
-        vec.push_back(0);
-    for(int i = 1; i < n; i++)
-    {
-        int tmp = rand() & n;
-        while (vec[tmp] != 0)
-        {
-            if(++tmp == n)
-                tmp = 0;
-        }
-        vec[tmp] = i;
-    }
+        vec.push_back(n - 1 - i);
     for(int i = 0; i < n; i++)
         if(vec[i] == 0)
         {
@@ -34,112 +84,146 @@ State::State(const int& n)
             break;
         }
 }
-State::State(vector<int> _v, int _blankPos)
+bool State::operator== (const State& _s)
 {
-    vec = _v;
-    blankPos = _blankPos;
+    return vec == _s.vec;
 }
 
 
-struct Node
+Node::Node()
 {
-    State state;
-    Node* parent;
-    int pathCost;
-
-    Node(const State& _state);
-    
-    vector<Node> expand();
-};
-
-Node::Node(const State& _state)
-{
-    state = _state;
     parent = nullptr;
     pathCost = 0;
 }
-
-vector<Node> Node::expand()
+vector<Node> Node::expand(Problem& problem, vector<State> reachedStates, const bool& isGraphSearch, bool& goalFound)
 {
     vector<Node> vecExpanded;
+    vector<State> models = problem.trasitionModel(state);
 
-    vector<int> vec = state.vec;
-    int actions[] {-1, 1, -3, 3};
-    for(int i = 0; i < 4; i++)
+    // for(State s : models)
+    // {
+    //     cout << "--> ";
+    //     for(int i : s.vec)
+    //     {
+    //         cout << i << ' ';
+    //     }
+    //     cout << '\n';
+    // }
+
+    int modelsSize =  models.size();
+    int reachedSize = reachedStates.size();
+    
+    for(int i = 0; i < modelsSize; i++)
     {
-        if(state.blankPos + actions[i] < vec.size())
+        if(isGraphSearch)
+            for(int j = 0; j < reachedSize; j++)
+                if(models[i] == reachedStates[j])
+                    continue;
+
+        Node node;
+        node.state = models[i];
+        node.parent = this;
+        node.pathCost = pathCost + 1;
+
+        if(problem.isGoal(models[i]))
         {
-            vector<int> newVec = vec;
-            newVec[state.blankPos] = newVec[state.blankPos + actions[i]];
-            newVec[state.blankPos + actions[i]] = 0;
+            cout << "Has goal\n";
 
-            Node node = Node(State(newVec, state.blankPos + actions[i]));
-            node.parent = this;
-            node.pathCost = pathCost + 1;
-
-            vecExpanded.push_back(node);
+            vector<Node> goalVec;
+            goalVec.push_back(node);
+            goalFound = true;
+            return goalVec;
         }
-    } 
+
+        vecExpanded.push_back(node);
+    }
     
     return vecExpanded;
 }
-
-void Sort_Expanded_Nodes(vector<Node> &nodes, vector<State> reachedStates)
+void Node::constructSolution(Problem& problem)
 {
-    int reachStatesSize = reachedStates.size();
-    int size = nodes.size();
-
-    //Sort
-    bool unSorted = true;
-    while (unSorted)
+    Node* tmp = this;
+    while (tmp != nullptr)
     {
-        unSorted = false;
-        for(int i = 0; i < size - 1; i++)
-        {
-            if(nodes[i].pathCost > nodes[i+1].pathCost)
-                {
-                    unSorted = true;
-                    Node tmp = nodes[i];
-                    nodes[i] = nodes[i+1];
-                    nodes[i+1] = tmp;
-                }
-        }
+        problem.solution.push_back(tmp->state);
+        tmp = tmp->parent;
     }
 }
 
-Node UCS(State initialState, int n)
+typedef <class T>
+struct LinkedList
 {
-    if(initialState.isGoal())
-        return Node(initialState);
+    T* list;
+}
+
+void UCS(Problem& problem)
+{
+    if(problem.isGoal(problem.initialState))
+        return;
 
     queue<Node> frontier;
     vector<State> reachedStates;
 
-    frontier.push(Node(initialState));
+    Node node;
+    node.state = problem.initialState;
+    frontier.push(node);
 
+    int count = 0;
     while(!frontier.empty())
     {
-        Node node = frontier.front();
+        node = frontier.front();
         frontier.pop();
 
         reachedStates.push_back(node.state);
 
-        vector<Node> expandedNodes = node.expand();
+        bool goalFound = false;
+        vector<Node> expandedNodes = node.expand(problem, reachedStates, true, goalFound);
 
-        if(expandedNodes[0].state.isGoal())
-            return expandedNodes[0];
+        if(goalFound)
+        {
+            expandedNodes[0].constructSolution(problem);
+            return;
+        }
 
         /*
             Sort vector of Nodes according to 2 criteria:
             + Nodes have lower path cost stand in front of nodes have higher.
             + Nodes have state in reachedStates stand at the back and be eliminated.
         */
-        Sort_Expanded_Nodes(expandedNodes, reachedStates); //Using bubble sort
 
-        int tmp = expandedNodes.size();
-        for(int i = 0; i < tmp; i++)
+        int expandedSize = expandedNodes.size();
+        for(int i = 0; i < expandedSize; i++)
             frontier.push(expandedNodes[i]);
-    }
 
-    return Node(State());
+        cout << count++ << ' ';
+    }
+}
+
+int main()
+{
+    Problem problem(9);
+    problem.initialState.vec.clear();
+    problem.initialState.vec.push_back(1);
+    problem.initialState.vec.push_back(2);
+    problem.initialState.vec.push_back(0);
+    problem.initialState.vec.push_back(3);
+    problem.initialState.vec.push_back(4);
+    problem.initialState.vec.push_back(5);
+    problem.initialState.vec.push_back(6);
+    problem.initialState.vec.push_back(7);
+    problem.initialState.vec.push_back(8);
+    problem.initialState.blankPos = 2;
+
+    cout << "Initial state: ";
+    for(int i : problem.initialState.vec)
+        cout << i;
+    cout << "\nGoal state: ";
+    for(int i : problem.goalState.vec)
+        cout << i;
+    cout << endl;
+
+    UCS(problem);
+    cout << "This is solution size: " << problem.solution.size();
+
+    return 0;
 }
