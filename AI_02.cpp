@@ -1,19 +1,28 @@
 #include <iostream>
-#include<string>
 #include<vector>
 #include<queue>
 
 using namespace std;
 
+//---------------------- Struct to use -------------------------------------------------
 struct State
 {
     vector<int> vec;
     int blankPos;
 
     bool operator== (const State& _s);
+    bool operator!= (const State& _s);
 
     State() {}
     State(const int& n); //Randomly generate
+};
+
+struct ReachedState
+{
+    State state;
+    int evaluation;
+
+    ReachedState(const State& _s, const int& _e);
 };
 
 struct Problem
@@ -34,15 +43,24 @@ struct Node
     State state;
     Node* parent;
     int pathCost;
+    int evaluation;
     
-    vector<Node> expand(Problem& problem, vector<State> reachedStates, const bool& isGraphSearch, bool& goalFound);
+    vector<Node> expand(Problem& problem, vector<ReachedState>& reachedStates, const int& _heuristic);
 
     void constructSolution(Problem& problem);
 
-    Node();
+    Node(const int& _heuristic, const int& _pathCost);
 };
 
+struct CompareNode //For Priority Queue
+{
+    bool operator()(const Node& lnode, const Node& rnode)
+    {
+        return lnode.evaluation > rnode.evaluation; //Using Min-heap Priority Queue
+    }
+};
 
+//---------------------------------- Struct's implemetation -------------------------------------------------
 Problem::Problem(const int& _n)
 {
     initialState = State(_n);
@@ -88,58 +106,52 @@ bool State::operator== (const State& _s)
 {
     return vec == _s.vec;
 }
+bool State::operator!= (const State& _s)
+{
+    return vec != _s.vec;
+}
 
 
-Node::Node()
+Node::Node(const int& _heuristic, const int& _pathCost)
 {
     parent = nullptr;
-    pathCost = 0;
+    evaluation = _heuristic + _pathCost;
+    pathCost = _pathCost;
 }
-vector<Node> Node::expand(Problem& problem, vector<State> reachedStates, const bool& isGraphSearch, bool& goalFound)
+
+vector<Node> Node::expand(Problem& problem, vector<ReachedState>& reachedStates, const int& _heuristic)
 {
     vector<Node> vecExpanded;
     vector<State> models = problem.trasitionModel(state);
-
-    // for(State s : models)
-    // {
-    //     cout << "--> ";
-    //     for(int i : s.vec)
-    //     {
-    //         cout << i << ' ';
-    //     }
-    //     cout << '\n';
-    // }
-
-    int modelsSize =  models.size();
-    int reachedSize = reachedStates.size();
     
-    for(int i = 0; i < modelsSize; i++)
+    for(State state : models)
     {
-        if(isGraphSearch)
-            for(int j = 0; j < reachedSize; j++)
-                if(models[i] == reachedStates[j])
-                    continue;
-
-        Node node;
-        node.state = models[i];
+        Node node (_heuristic, pathCost + 1);
+        node.state = state;
         node.parent = this;
-        node.pathCost = pathCost + 1;
 
-        if(problem.isGoal(models[i]))
+        bool unreached = true;
+        for(ReachedState rstate : reachedStates)
         {
-            cout << "Has goal\n";
-
-            vector<Node> goalVec;
-            goalVec.push_back(node);
-            goalFound = true;
-            return goalVec;
+            if(node.state == rstate.state)
+            {
+                unreached = false;
+                if(node.evaluation < rstate.evaluation)
+                {
+                    vecExpanded.push_back(node);
+                    rstate.evaluation = node.evaluation;
+                }
+                break;
+            }
         }
 
-        vecExpanded.push_back(node);
+        if(unreached)
+            vecExpanded.push_back(node);
     }
     
     return vecExpanded;
 }
+
 void Node::constructSolution(Problem& problem)
 {
     Node* tmp = this;
@@ -150,52 +162,42 @@ void Node::constructSolution(Problem& problem)
     }
 }
 
-typedef <class T>
-struct LinkedList
+ReachedState::ReachedState(const State& _s, const int& _e)
 {
-    T* list;
+    state = _s;
+    evaluation = _e;
 }
 
+//---------------------------------------- Algorithms -----------------------------------------------------
 void UCS(Problem& problem)
 {
-    if(problem.isGoal(problem.initialState))
-        return;
+    priority_queue<Node, vector<Node>, CompareNode> frontier;
+    vector<ReachedState> reachedStates;
 
-    queue<Node> frontier;
-    vector<State> reachedStates;
-
-    Node node;
+    Node node(0, 0);
     node.state = problem.initialState;
     frontier.push(node);
 
-    int count = 0;
+    int count = 1;
+    cout << "Run" << endl;
     while(!frontier.empty())
     {
-        node = frontier.front();
-        frontier.pop();
-
-        reachedStates.push_back(node.state);
-
-        bool goalFound = false;
-        vector<Node> expandedNodes = node.expand(problem, reachedStates, true, goalFound);
-
-        if(goalFound)
+        std::cout << count++ << ' ';
+        node = frontier.top();
+    
+        if(problem.isGoal(node.state))
         {
-            expandedNodes[0].constructSolution(problem);
+            node.constructSolution(problem);
             return;
         }
 
-        /*
-            Sort vector of Nodes according to 2 criteria:
-            + Nodes have lower path cost stand in front of nodes have higher.
-            + Nodes have state in reachedStates stand at the back and be eliminated.
-        */
+        frontier.pop();
+        reachedStates.push_back(ReachedState(node.state, node.evaluation));
 
-        int expandedSize = expandedNodes.size();
-        for(int i = 0; i < expandedSize; i++)
-            frontier.push(expandedNodes[i]);
+        vector<Node> expandedNodes = node.expand(problem, reachedStates, 0);
 
-        cout << count++ << ' ';
+        for(Node node : expandedNodes)
+            frontier.push(node);
     }
 }
 
@@ -204,15 +206,15 @@ int main()
     Problem problem(9);
     problem.initialState.vec.clear();
     problem.initialState.vec.push_back(1);
-    problem.initialState.vec.push_back(2);
     problem.initialState.vec.push_back(0);
+    problem.initialState.vec.push_back(2);
     problem.initialState.vec.push_back(3);
     problem.initialState.vec.push_back(4);
     problem.initialState.vec.push_back(5);
     problem.initialState.vec.push_back(6);
     problem.initialState.vec.push_back(7);
     problem.initialState.vec.push_back(8);
-    problem.initialState.blankPos = 2;
+    problem.initialState.blankPos = 1;
 
     cout << "Initial state: ";
     for(int i : problem.initialState.vec)
