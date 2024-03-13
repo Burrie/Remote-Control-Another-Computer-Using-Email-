@@ -4,14 +4,16 @@
 
 using namespace std;
 
+#define ACTION_COST 1
+
 //---------------------- Struct to use -------------------------------------------------
 struct State
 {
-    vector<int> vec;
     int blankPos;
+    vector<int> vec;
 
     bool operator== (const State& _s);
-    bool operator!= (const State& _s);
+    State& operator=(const State& _s);
 
     State() {}
     State(const int& n); //Randomly generate
@@ -19,8 +21,8 @@ struct State
 
 struct ReachedState
 {
-    State state;
     int evaluation;
+    State state;
 
     ReachedState(const State& _s, const int& _e);
 };
@@ -40,8 +42,8 @@ struct Problem
 
 struct Node
 {
-    State state;
     Node* parent;
+    State state;
     int pathCost;
     int evaluation;
     
@@ -94,7 +96,7 @@ bool Problem::isGoal(const State& _s)
 State::State(const int& n)
 {
     for(int i = 0; i < n; i++)
-        vec.push_back(n - 1 - i);
+        vec.push_back(n - 1 - i); //Fix initial state
     for(int i = 0; i < n; i++)
         if(vec[i] == 0)
         {
@@ -106,9 +108,12 @@ bool State::operator== (const State& _s)
 {
     return vec == _s.vec;
 }
-bool State::operator!= (const State& _s)
+State& State::operator=(const State& _s)
 {
-    return vec != _s.vec;
+    vec = _s.vec;
+    blankPos = _s.blankPos;
+
+    return *this;
 }
 
 
@@ -124,28 +129,28 @@ vector<Node> Node::expand(Problem& problem, vector<ReachedState>& reachedStates,
     vector<Node> vecExpanded;
     vector<State> models = problem.trasitionModel(state);
     
-    for(State state : models)
+    for(State s : models)
     {
-        Node node (_heuristic, pathCost + 1);
-        node.state = state;
+        Node node (_heuristic, pathCost + ACTION_COST);
+        node.state = s;
         node.parent = this;
 
-        bool unreached = true;
+        bool shouldAdd = true; //Classify Node to add to frontier
         for(ReachedState rstate : reachedStates)
         {
             if(node.state == rstate.state)
             {
-                unreached = false;
+                shouldAdd = false;
                 if(node.evaluation < rstate.evaluation)
                 {
-                    vecExpanded.push_back(node);
+                    shouldAdd = true;
                     rstate.evaluation = node.evaluation;
                 }
                 break;
             }
         }
 
-        if(unreached)
+        if(shouldAdd)
             vecExpanded.push_back(node);
     }
     
@@ -178,11 +183,8 @@ void UCS(Problem& problem)
     node.state = problem.initialState;
     frontier.push(node);
 
-    int count = 1;
-    cout << "Run" << endl;
     while(!frontier.empty())
     {
-        std::cout << count++ << ' ';
         node = frontier.top();
     
         if(problem.isGoal(node.state))
@@ -194,10 +196,8 @@ void UCS(Problem& problem)
         frontier.pop();
         reachedStates.push_back(ReachedState(node.state, node.evaluation));
 
-        vector<Node> expandedNodes = node.expand(problem, reachedStates, 0);
-
-        for(Node node : expandedNodes)
-            frontier.push(node);
+        for (Node n : node.expand(problem, reachedStates, 0))
+            frontier.push(n);
     }
 }
 
