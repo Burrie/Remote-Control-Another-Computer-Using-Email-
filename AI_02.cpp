@@ -4,7 +4,7 @@
 
 using namespace std;
 
-#define ACTION_COST 1
+#define ACTION_COST 1 //Transition from one state to another take only 1 step
 
 //---------------------- Struct to use -------------------------------------------------
 struct State
@@ -35,7 +35,7 @@ struct Problem
     vector<State> trasitionModel(const State& _s);
     bool isGoal(const State& _s);
 
-    vector<State> solution;
+    queue<State> solution;
 
     Problem(const int& _n);
 };
@@ -44,14 +44,12 @@ struct Node
 {
     Node* parent;
     State state;
-    int pathCost;
-    int evaluation;
+    int pathCost, evaluation, numberOfChildren;
     
-    vector<Node> expand(Problem& problem, vector<ReachedState>& reachedStates, const int& _heuristic);
-
-    void constructSolution(Problem& problem);
+    vector<Node*> expand(Problem& problem, vector<ReachedState>& reachedStates, const int& _heuristic);
 
     Node(const int& _heuristic, const int& _pathCost);
+    ~Node();
 };
 
 struct CompareNode //For Priority Queue
@@ -122,49 +120,48 @@ Node::Node(const int& _heuristic, const int& _pathCost)
     parent = nullptr;
     evaluation = _heuristic + _pathCost;
     pathCost = _pathCost;
+    numberOfChildren = 0;
 }
-
-vector<Node> Node::expand(Problem& problem, vector<ReachedState>& reachedStates, const int& _heuristic)
+Node::~Node()
 {
-    vector<Node> vecExpanded;
+    parent->numberOfChildren--;
+    if(parent->numberOfChildren == 0)
+        delete parent;
+}
+vector<Node*> Node::expand(Problem& problem, vector<ReachedState>& reachedStates, const int& _heuristic)
+{
+    vector<Node*> vecExpanded;
     vector<State> models = problem.trasitionModel(state);
     
     for(State s : models)
     {
-        Node node (_heuristic, pathCost + ACTION_COST);
-        node.state = s;
-        node.parent = this;
+        Node* node = new Node(_heuristic, pathCost + ACTION_COST);
+        node->state = s;
+        node->parent = this; //To backtrack when the goal is found
 
         bool shouldAdd = true; //Classify Node to add to frontier
         for(ReachedState rstate : reachedStates)
         {
-            if(node.state == rstate.state)
+            if(node->state == rstate.state)
             {
                 shouldAdd = false;
-                if(node.evaluation < rstate.evaluation)
+                if(node->evaluation < rstate.evaluation)
                 {
                     shouldAdd = true;
-                    rstate.evaluation = node.evaluation;
+                    rstate.evaluation = node->evaluation;
                 }
                 break;
             }
         }
 
         if(shouldAdd)
+        {
+            numberOfChildren++;
             vecExpanded.push_back(node);
+        }
     }
     
     return vecExpanded;
-}
-
-void Node::constructSolution(Problem& problem)
-{
-    Node* tmp = this;
-    while (tmp != nullptr)
-    {
-        problem.solution.push_back(tmp->state);
-        tmp = tmp->parent;
-    }
 }
 
 ReachedState::ReachedState(const State& _s, const int& _e)
@@ -174,31 +171,52 @@ ReachedState::ReachedState(const State& _s, const int& _e)
 }
 
 //---------------------------------------- Algorithms -----------------------------------------------------
-void UCS(Problem& problem)
+
+void constructSolution(Problem& problem, Node* leafNode)
 {
-    priority_queue<Node, vector<Node>, CompareNode> frontier;
+    while (leafNode != nullptr)
+    {
+        problem.solution.push(leafNode->state);
+        Node* toDelete = leafNode;
+        leafNode = leafNode->parent;
+        delete toDelete;
+    }
+}
+
+void Search(Problem& problem, const int& heuristic)
+{
+    priority_queue<Node*, vector<Node*>, CompareNode> frontier;
     vector<ReachedState> reachedStates;
 
-    Node node(0, 0);
-    node.state = problem.initialState;
+    Node* node = new Node(heuristic, 0);
+    node->state = problem.initialState;
     frontier.push(node);
 
     while(!frontier.empty())
     {
         node = frontier.top();
     
-        if(problem.isGoal(node.state))
+        if(problem.isGoal(node->state))
         {
-            node.constructSolution(problem);
+            constructSolution(problem, node);
+            cout << "Finish";
             return;
         }
 
         frontier.pop();
-        reachedStates.push_back(ReachedState(node.state, node.evaluation));
+        reachedStates.push_back(ReachedState(node->state, node->evaluation));
 
-        for (Node n : node.expand(problem, reachedStates, 0))
+        for (Node* n : node->expand(problem, reachedStates, 0))
             frontier.push(n);
+
+        if(node->numberOfChildren == 0) //Delete useless leaf node
+            delete node;
     }
+}
+
+void UCS(Problem& problem)
+{
+    Search(problem, 0);
 }
 
 int main()
