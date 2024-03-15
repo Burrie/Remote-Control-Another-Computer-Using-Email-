@@ -64,8 +64,9 @@ struct CompareNode //For Priority Queue
 Problem::Problem(const int& _n)
 {
     initialState = State(_n);
-    for(int i = 0; i < _n; i++)
+    for(int i = 1; i < _n; i++)
         goalState.vec.push_back(i);
+    goalState.vec.push_back(0);
 }
 vector<State> Problem::trasitionModel(const State& _s)
 {
