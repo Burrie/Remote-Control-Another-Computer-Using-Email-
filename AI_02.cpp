@@ -1,6 +1,7 @@
-#include <iostream>
+#include<iostream>
 #include<vector>
 #include<queue>
+#include<math.h>
 #include<time.h>
 
 using namespace std;
@@ -47,7 +48,8 @@ struct Node
     State state;
     int pathCost, evaluation, numberOfChildren;
     
-    vector<Node*> expand(Problem& problem, vector<ReachedState>& reachedStates, const int& _heuristic);
+    typedef int(* Heuristic) (const State& _s);
+    vector<Node*> expand(Problem& problem, vector<ReachedState>& reachedStates, Heuristic heuristic);
 
     Node(const int& _heuristic, const int& _pathCost);
 };
@@ -61,10 +63,51 @@ struct CompareNode //For Priority Queue
 };
 
 //---------------------------------- Struct's implemetation -------------------------------------------------
-Problem::Problem(const int& _n)
+int countInversions(const State& state)
 {
-    initialState = State(_n);
-    for(int i = 1; i < _n; i++)
+    int count = 0;
+    int size = state.vec.size();
+
+    for(int i = 0; i < size - 1; i++)
+    {
+        if(state.vec[i] < 2)
+            continue;
+        for(int j = i + 1; j < size; j++)
+        {
+            if(state.vec[j] != 0 && state.vec[i] > state.vec[j])
+                count++;
+        }
+    }
+
+    return count;
+}
+bool isSolvable(const int& n, const State& state)
+{
+    if((int)sqrt(n) % 2 != 0)
+    {
+        return countInversions(state) % 2 == 0;
+    }
+    
+    int countRow = -1;
+    for(int i = 0; i < state.vec.size(); i++)
+    {
+        if(state.vec[i] == 0)
+            break;
+        countRow++;
+    }
+    countRow /= sqrt(n);
+
+    return (countRow + countInversions(state)) % 2 != 0;
+}
+Problem::Problem(const int& n)
+{
+    do
+    {
+        initialState = State(n);
+    }
+    while(isSolvable(n, initialState)); //If initial is not solvable -> regenerate
+
+    for(int i = 1; i < n; i++)
         goalState.vec.push_back(i);
     goalState.vec.push_back(0);
 }
@@ -90,7 +133,6 @@ bool Problem::isGoal(const State& _s)
 {
     return goalState == _s;
 }
-
 
 State::State(const int& n)
 {
@@ -133,14 +175,15 @@ Node::Node(const int& _heuristic, const int& _pathCost)
     pathCost = _pathCost;
     numberOfChildren = 0;
 }
-vector<Node*> Node::expand(Problem& problem, vector<ReachedState>& reachedStates, const int& _heuristic)
+typedef int (* Heuristic)(const State& _s);
+vector<Node*> Node::expand(Problem& problem, vector<ReachedState>& reachedStates, Heuristic heuristic)
 {
     vector<Node*> vecExpanded;
     vector<State> models = problem.trasitionModel(state);
     
     for(State s : models)
     {
-        Node* node = new Node(_heuristic, pathCost + ACTION_COST);
+        Node* node = new Node(heuristic(s), pathCost + ACTION_COST);
         node->state = s;
         node->parent = this; //To backtrack when the goal is found
 
@@ -186,14 +229,21 @@ void constructSolution(Problem& problem, Node* leafNode)
     }
 }
 
-void Search(Problem& problem, const int& heuristic)
+typedef int (* Heuristic)(const State& _s);
+void Search(Problem& problem, Heuristic heuristic, double& memoryConsumed, double& exercutionTime)
 {
+    clock_t start, end;
+    start = clock();
+
+    memoryConsumed = 0;
+
     priority_queue<Node*, vector<Node*>, CompareNode> frontier;
     vector<ReachedState> reachedStates;
 
-    Node* node = new Node(heuristic, 0);
+    Node* node = new Node(heuristic(problem.initialState), 0);
     node->state = problem.initialState;
     frontier.push(node);
+    memoryConsumed += sizeof(node);
 
     bool goalFound = false;
     while(!frontier.empty())
@@ -209,10 +259,15 @@ void Search(Problem& problem, const int& heuristic)
             }
 
             frontier.pop();
+            memoryConsumed -= sizeof(node);
             reachedStates.push_back(ReachedState(node->state, node->evaluation));
+            memoryConsumed += sizeof(ReachedState(node->state, node->evaluation));
 
             for (Node* n : node->expand(problem, reachedStates, 0))
+            {
                 frontier.push(n);
+                memoryConsumed += sizeof(n);
+            }
 
             if(node->numberOfChildren == 0) //Delete useless leaf node
             {
@@ -228,16 +283,24 @@ void Search(Problem& problem, const int& heuristic)
             delete node;
        }
     }
+
+    end = clock();
+    exercutionTime = double(end - start) * 1000 / double(CLOCKS_PER_SEC);
 }
 
-void UCS(Problem& problem, double& timeTaken)
+int Heuristic_UCS(const State& _s)
 {
-    clock_t start,end;
-    start = clock();
-    Search(problem, 0);
-    end = clock();
+    return 0;
+}
 
-    timeTaken = double(end - start) / double(CLOCKS_PER_SEC);
+int Heuristic_AStar(const State& _s) //Using "Inversion Distance" Heuristic
+{
+    int verticalID = countInversions(_s);
+    int horizontalID;
+
+    State state = _s;
+
+    return verticalID + horizontalID;
 }
 
 int main()
@@ -250,10 +313,10 @@ int main()
     cout << "\nGoal state: ";
     for(int i : problem.goalState.vec)
         cout << i;
-    cout << endl;
+    cout << endl << endl;
 
-    double timeTaken;
-    UCS(problem, timeTaken);
+    double memoryConsumed, exercutionTime;
+    Search(problem, Heuristic_UCS, memoryConsumed, exercutionTime);
 
     int solutionSize = problem.solution.size();
     if(solutionSize == 0)
@@ -268,7 +331,8 @@ int main()
                 cout << num << ' ';
         }
 
-        cout << "Exercution time: " << timeTaken << " (Seconds)";
+        cout << "\nExercution time: " << exercutionTime << " (Miliseconds).";
+        cout << "\nMemory: " << memoryConsumed / 1024 << " (MB).";
     }
 
     return 0;
