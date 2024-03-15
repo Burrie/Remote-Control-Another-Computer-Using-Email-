@@ -236,7 +236,7 @@ void UCS(Problem& problem, double& timeTaken)
     Search(problem, 0);
     end = clock();
 
-    timeTaken = double(start - end) / double(CLOCKS_PER_SEC);
+    timeTaken = double(end - start) / double(CLOCKS_PER_SEC);
 }
 
 int main()
@@ -267,7 +267,7 @@ int main()
                 cout << num << ' ';
         }
 
-        cout << "Exercution time: " << timeTaken;
+        cout << "Exercution time: " << timeTaken << " (Seconds)";
     }
 
     return 0;
