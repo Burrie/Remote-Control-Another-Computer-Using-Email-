@@ -1,6 +1,7 @@
 #include <iostream>
 #include<vector>
 #include<queue>
+#include<time.h>
 
 using namespace std;
 
@@ -35,7 +36,7 @@ struct Problem
     vector<State> trasitionModel(const State& _s);
     bool isGoal(const State& _s);
 
-    queue<State> solution;
+    vector<State> solution;
 
     Problem(const int& _n);
 };
@@ -49,14 +50,13 @@ struct Node
     vector<Node*> expand(Problem& problem, vector<ReachedState>& reachedStates, const int& _heuristic);
 
     Node(const int& _heuristic, const int& _pathCost);
-    ~Node();
 };
 
 struct CompareNode //For Priority Queue
 {
-    bool operator()(const Node& lnode, const Node& rnode)
+    bool operator()(const Node* lnode, const Node* rnode)
     {
-        return lnode.evaluation > rnode.evaluation; //Using Min-heap Priority Queue
+        return lnode->evaluation > rnode->evaluation; //Using Min-heap Priority Queue
     }
 };
 
@@ -94,13 +94,23 @@ bool Problem::isGoal(const State& _s)
 State::State(const int& n)
 {
     for(int i = 0; i < n; i++)
-        vec.push_back(n - 1 - i); //Fix initial state
+        vec.push_back(-1);
+
+    srand((unsigned)time(NULL));
+    
     for(int i = 0; i < n; i++)
-        if(vec[i] == 0)
+    {
+        int random = rand() % n;
+        while(vec[random] != -1)
         {
-            blankPos = i;
-            break;
+            if(++random >= n)
+                random = 0;
         }
+        vec[random] = i;
+
+        if(i == 0)
+            blankPos = random;
+    }
 }
 bool State::operator== (const State& _s)
 {
@@ -117,16 +127,10 @@ State& State::operator=(const State& _s)
 
 Node::Node(const int& _heuristic, const int& _pathCost)
 {
-    parent = nullptr;
+    parent = NULL;
     evaluation = _heuristic + _pathCost;
     pathCost = _pathCost;
     numberOfChildren = 0;
-}
-Node::~Node()
-{
-    parent->numberOfChildren--;
-    if(parent->numberOfChildren == 0)
-        delete parent;
 }
 vector<Node*> Node::expand(Problem& problem, vector<ReachedState>& reachedStates, const int& _heuristic)
 {
@@ -174,12 +178,10 @@ ReachedState::ReachedState(const State& _s, const int& _e)
 
 void constructSolution(Problem& problem, Node* leafNode)
 {
-    while (leafNode != nullptr)
+    while (leafNode != NULL)
     {
-        problem.solution.push(leafNode->state);
-        Node* toDelete = leafNode;
+        problem.solution.push_back(leafNode->state);
         leafNode = leafNode->parent;
-        delete toDelete;
     }
 }
 
@@ -192,47 +194,54 @@ void Search(Problem& problem, const int& heuristic)
     node->state = problem.initialState;
     frontier.push(node);
 
+    bool goalFound = false;
     while(!frontier.empty())
     {
         node = frontier.top();
     
-        if(problem.isGoal(node->state))
-        {
-            constructSolution(problem, node);
-            cout << "Finish";
-            return;
-        }
+       if(goalFound == false)
+       {
+            if(problem.isGoal(node->state))
+            {
+                constructSolution(problem, node);
+                goalFound = true;
+            }
 
-        frontier.pop();
-        reachedStates.push_back(ReachedState(node->state, node->evaluation));
+            frontier.pop();
+            reachedStates.push_back(ReachedState(node->state, node->evaluation));
 
-        for (Node* n : node->expand(problem, reachedStates, 0))
-            frontier.push(n);
+            for (Node* n : node->expand(problem, reachedStates, 0))
+                frontier.push(n);
 
-        if(node->numberOfChildren == 0) //Delete useless leaf node
+            if(node->numberOfChildren == 0) //Delete useless leaf node
+            {
+                node->parent->numberOfChildren--;
+                Node* _parent = node->parent;
+                delete node;
+                node = _parent;
+            }
+       }
+       else
+       {
+            frontier.pop();
             delete node;
+       }
     }
 }
 
-void UCS(Problem& problem)
+void UCS(Problem& problem, double& timeTaken)
 {
+    clock_t start,end;
+    start = clock();
     Search(problem, 0);
+    end = clock();
+
+    timeTaken = double(start - end) / double(CLOCKS_PER_SEC);
 }
 
 int main()
 {
     Problem problem(9);
-    problem.initialState.vec.clear();
-    problem.initialState.vec.push_back(1);
-    problem.initialState.vec.push_back(0);
-    problem.initialState.vec.push_back(2);
-    problem.initialState.vec.push_back(3);
-    problem.initialState.vec.push_back(4);
-    problem.initialState.vec.push_back(5);
-    problem.initialState.vec.push_back(6);
-    problem.initialState.vec.push_back(7);
-    problem.initialState.vec.push_back(8);
-    problem.initialState.blankPos = 1;
 
     cout << "Initial state: ";
     for(int i : problem.initialState.vec)
@@ -242,8 +251,24 @@ int main()
         cout << i;
     cout << endl;
 
-    UCS(problem);
-    cout << "This is solution size: " << problem.solution.size();
+    double timeTaken;
+    UCS(problem, timeTaken);
+
+    int solutionSize = problem.solution.size();
+    if(solutionSize == 0)
+        cout << "There is no solution";
+    else
+    {
+        cout << "Solution path: ";
+        for(int i = solutionSize - 1; i >= 0; i--)
+        {
+            cout << "\n--> ";
+            for(int num : problem.solution[i].vec)
+                cout << num << ' ';
+        }
+
+        cout << "Exercution time: " << timeTaken;
+    }
 
     return 0;
 }
