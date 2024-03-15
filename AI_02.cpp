@@ -8,6 +8,8 @@ using namespace std;
 
 #define ACTION_COST 1 //Transition from one state to another take only 1 step
 
+int n;
+
 //---------------------- Struct to use -------------------------------------------------
 struct State
 {
@@ -68,13 +70,13 @@ int countInversions(const State& state)
     int count = 0;
     int size = state.vec.size();
 
-    for(int i = 0; i < size - 1; i++)
+    for(int i = 1; i < size; i++)
     {
-        if(state.vec[i] < 2)
+        if(state.vec[i] < 1)
             continue;
-        for(int j = i + 1; j < size; j++)
+        for(int j = i - 1; j >= 0; j--)
         {
-            if(state.vec[j] != 0 && state.vec[i] > state.vec[j])
+            if(state.vec[j] > 0 && state.vec[i] < state.vec[j])
                 count++;
         }
     }
@@ -105,7 +107,7 @@ Problem::Problem(const int& n)
     {
         initialState = State(n);
     }
-    while(isSolvable(n, initialState)); //If initial is not solvable -> regenerate
+    while(!isSolvable(n, initialState)); //If initial is not solvable -> regenerate
 
     for(int i = 1; i < n; i++)
         goalState.vec.push_back(i);
@@ -256,28 +258,33 @@ void Search(Problem& problem, Heuristic heuristic, double& memoryConsumed, doubl
             {
                 constructSolution(problem, node);
                 goalFound = true;
+                cout << "has goal";
+                continue;
             }
 
             frontier.pop();
             memoryConsumed -= sizeof(node);
+
             reachedStates.push_back(ReachedState(node->state, node->evaluation));
             memoryConsumed += sizeof(ReachedState(node->state, node->evaluation));
 
-            for (Node* n : node->expand(problem, reachedStates, 0))
+            for (Node* n : node->expand(problem, reachedStates, heuristic))
             {
                 frontier.push(n);
                 memoryConsumed += sizeof(n);
             }
 
-            if(node->numberOfChildren == 0) //Delete useless leaf node
+            while(node->numberOfChildren == 0) //Delete useless leaf node
             {
                 node->parent->numberOfChildren--;
                 Node* _parent = node->parent;
                 delete node;
                 node = _parent;
+
+                memoryConsumed -= sizeof(node);
             }
        }
-       else
+       else //Delete all Nodes left in frontier
        {
             frontier.pop();
             delete node;
@@ -295,21 +302,21 @@ int Heuristic_UCS(const State& _s)
 
 int Heuristic_AStar(const State& _s) //Using "Inversion Distance" Heuristic
 {
-    int verticalID = countInversions(_s);
-    int horizontalID;
-
-    State state = _s;
+    int verticalID = countInversions(_s) / (int)sqrt(n) + countInversions(_s) % (int)sqrt(n);
+    int horizontalID = 0;
 
     return verticalID + horizontalID;
 }
 
 int main()
 {
-    Problem problem(9);
+    n = 9;
+    Problem problem(n);
 
     cout << "Initial state: ";
     for(int i : problem.initialState.vec)
         cout << i;
+    cout << '\n' << countInversions(problem.initialState);
     cout << "\nGoal state: ";
     for(int i : problem.goalState.vec)
         cout << i;
@@ -327,12 +334,17 @@ int main()
         for(int i = solutionSize - 1; i >= 0; i--)
         {
             cout << "\n--> ";
+            int count = 0;
             for(int num : problem.solution[i].vec)
+            {
                 cout << num << ' ';
+                if(++count % 3 == 0)
+                    cout << "\n    ";
+            }
         }
 
         cout << "\nExercution time: " << exercutionTime << " (Miliseconds).";
-        cout << "\nMemory: " << memoryConsumed / 1024 << " (MB).";
+        cout << "\nMemory: " << memoryConsumed / (1024*1024) << " (MB)."; //From Bytes -> MegaBytes
     }
 
     return 0;
