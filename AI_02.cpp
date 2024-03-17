@@ -120,7 +120,9 @@ vector<State> Problem::trasitionModel(const State& _s)
     int size = _s.vec.size();
     for(int i = 0; i < 4; i++)
     {
-        if(_s.blankPos + actions[i] < size && _s.blankPos + actions[i] >= 0) //Swap blank pos
+        bool canAdd = false;
+        canAdd;
+        if(canAdd) //Swap blank pos
         {
             State s = _s;
             s.vec[s.blankPos] = s.vec[s.blankPos + actions[i]];
